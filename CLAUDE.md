@@ -1,339 +1,339 @@
-# CLAUDE.md — Claude Code Source Code Repository Guide
+# CLAUDE.md — Claude Code 源码仓库指南
 
-> **Context for AI Assistants**: This is a decompiled/reconstructed TypeScript source for **Claude Code v2.1.88**, extracted from the published npm package `@anthropic-ai/claude-code`. All code is Anthropic's intellectual property. This repo exists for research and educational purposes only.
-
----
-
-## Repository Overview
-
-| Property | Value |
-|----------|-------|
-| Version | 2.1.88 |
-| Language | TypeScript + TSX (React) |
-| Runtime | Node.js ≥ 18 |
-| Build tool | esbuild (custom multi-phase pipeline) |
-| UI framework | Ink (React for terminals) |
-| Source files | ~1,884 files, ~205K LOC |
-| Entry point | `src/entrypoints/cli.tsx` |
-
-**Important caveat**: 108 feature-gated modules are absent (internal Anthropic infrastructure). `feature('FLAG')` calls in source transform to `false` in this build. See README.md for the full list.
+> **AI 助手上下文说明**：本仓库为 **Claude Code v2.1.88** 的反编译/重建 TypeScript 源码，提取自已发布的 npm 包 `@anthropic-ai/claude-code`。所有代码均为 Anthropic 的知识产权，本仓库仅供研究和教育目的使用。
 
 ---
 
-## Directory Structure
+## 仓库概览
+
+| 属性 | 值 |
+|------|-----|
+| 版本 | 2.1.88 |
+| 语言 | TypeScript + TSX (React) |
+| 运行时 | Node.js ≥ 18 |
+| 构建工具 | esbuild（自定义多阶段流水线） |
+| UI 框架 | Ink（终端版 React） |
+| 源文件数 | ~1,884 个文件，~205K 行代码 |
+| 入口点 | `src/entrypoints/cli.tsx` |
+
+**重要说明**：108 个功能门控模块缺失（Anthropic 内部基础设施）。源码中的 `feature('FLAG')` 调用在本构建中均转换为 `false`。完整列表请参见 README.md。
+
+---
+
+## 目录结构
 
 ```
 .
 ├── src/
-│   ├── entrypoints/          # CLI & SDK bootstraps
-│   │   ├── cli.tsx           # Main CLI entry (fast-path flags, env setup)
-│   │   ├── init.ts           # Async app initialization (telemetry, settings, OTEL)
-│   │   ├── mcp.ts            # MCP server entry
-│   │   └── sdk/              # SDK type exports
-│   ├── commands/             # 88+ subcommands (one file per command)
-│   ├── components/           # React/Ink UI components (~33 subdirectories)
-│   ├── services/             # Core services (see Services section)
-│   ├── tools/                # 40+ executable tools (see Tools section)
-│   ├── state/                # App state (AppState, AppStateStore)
-│   ├── context/              # React contexts (notifications, stats, voice, etc.)
-│   ├── utils/                # 150+ utility modules
-│   ├── ink/                  # Terminal rendering helpers
-│   ├── skills/               # Bundled skills system
-│   ├── plugins/              # Plugin management
-│   ├── bootstrap/            # Bootstrap state & init helpers
-│   ├── query.ts              # Main API query engine (68KB)
-│   ├── QueryEngine.ts        # Query orchestration (46KB)
-│   ├── main.tsx              # CLI command setup & REPL bootstrap (800KB)
-│   ├── commands.ts           # Command registry with conditional imports
-│   ├── Tool.ts               # Tool framework (ToolInputJSONSchema, execution)
-│   ├── Task.ts               # Task abstraction
-│   ├── App.tsx               # Top-level React component tree
-│   ├── AppState.tsx          # App state React context provider
-│   ├── AppStateStore.ts      # Zustand-like state store
-│   ├── context.ts            # System/user context providers (git, CLAUDE.md, date)
-│   └── costHook.ts           # Token & cost tracking
+│   ├── entrypoints/          # CLI & SDK 启动入口
+│   │   ├── cli.tsx           # 主 CLI 入口（快速路径标志、环境初始化）
+│   │   ├── init.ts           # 异步应用初始化（遥测、设置、OTEL）
+│   │   ├── mcp.ts            # MCP 服务器入口
+│   │   └── sdk/              # SDK 类型导出
+│   ├── commands/             # 88+ 个子命令（每个命令一个文件）
+│   ├── components/           # React/Ink UI 组件（~33 个子目录）
+│   ├── services/             # 核心服务（见服务章节）
+│   ├── tools/                # 40+ 个可执行工具（见工具章节）
+│   ├── state/                # 应用状态（AppState、AppStateStore）
+│   ├── context/              # React 上下文（通知、统计、语音等）
+│   ├── utils/                # 150+ 个工具模块
+│   ├── ink/                  # 终端渲染辅助
+│   ├── skills/               # 内置技能系统
+│   ├── plugins/              # 插件管理
+│   ├── bootstrap/            # 启动状态与初始化辅助
+│   ├── query.ts              # 主 API 查询引擎（68KB）
+│   ├── QueryEngine.ts        # 查询编排（46KB）
+│   ├── main.tsx              # CLI 命令设置与 REPL 启动（800KB）
+│   ├── commands.ts           # 命令注册表（条件导入）
+│   ├── Tool.ts               # 工具框架（ToolInputJSONSchema、执行）
+│   ├── Task.ts               # 任务抽象
+│   ├── App.tsx               # 顶层 React 组件树
+│   ├── AppState.tsx          # 应用状态 React 上下文提供者
+│   ├── AppStateStore.ts      # 类 Zustand 状态存储
+│   ├── context.ts            # 系统/用户上下文提供者（git、CLAUDE.md、日期）
+│   └── costHook.ts           # Token 与费用追踪
 ├── scripts/
-│   ├── build.mjs             # esbuild-based 4-phase build script
-│   ├── prepare-src.mjs       # Source preparation (copies src → build-src)
-│   ├── transform.mjs         # Code transforms (feature flags, version injection)
-│   └── stub-modules.mjs      # Auto-generates stubs for missing modules
+│   ├── build.mjs             # 基于 esbuild 的 4 阶段构建脚本
+│   ├── prepare-src.mjs       # 源码准备（将 src/ 复制到 build-src/）
+│   ├── transform.mjs         # 代码转换（功能标志、版本注入）
+│   └── stub-modules.mjs      # 自动生成缺失模块的存根
 ├── stubs/
-│   ├── bun-bundle.ts         # feature() stub → always returns false
-│   └── global.d.ts           # Global types (MACRO.VERSION, MACRO.BUILD_TIME)
+│   ├── bun-bundle.ts         # feature() 存根 → 始终返回 false
+│   └── global.d.ts           # 全局类型（MACRO.VERSION、MACRO.BUILD_TIME）
 ├── docs/
-│   ├── en/                   # English deep-analysis reports
-│   └── zh/                   # Chinese deep-analysis reports
-├── vendor/                   # Native/external dependencies
-├── types/                    # Legacy type stubs
+│   ├── en/                   # 英文深度分析报告
+│   └── zh/                   # 中文深度分析报告
+├── vendor/                   # 原生/外部依赖
+├── types/                    # 旧版类型存根
 ├── tsconfig.json
 ├── package.json
-├── README.md                 # Architecture overview + 108 missing modules list
-└── QUICKSTART.md             # Build instructions
+├── README.md                 # 架构概览 + 108 个缺失模块列表
+└── QUICKSTART.md             # 构建说明
 ```
 
 ---
 
-## Build System
+## 构建系统
 
-### Commands
+### 命令
 
 ```bash
-npm run prepare-src   # Copy src/ → build-src/ (preserves originals)
-npm run build         # Full build: prepare-src + esbuild pipeline → dist/cli.js
-npm run check         # TypeScript type-check only (no emit)
-npm start             # Run built CLI: node dist/cli.js
+npm run prepare-src   # 将 src/ 复制到 build-src/（保留原始文件）
+npm run build         # 完整构建：prepare-src + esbuild 流水线 → dist/cli.js
+npm run check         # 仅 TypeScript 类型检查（不输出文件）
+npm start             # 运行构建后的 CLI：node dist/cli.js
 ```
 
-### Build Pipeline (4 phases in `scripts/build.mjs`)
+### 构建流水线（`scripts/build.mjs` 中的 4 个阶段）
 
-1. **Prepare** – copy `src/` → `build-src/` (originals untouched)
-2. **Transform** – rewrite source in `build-src/`:
-   - `feature('FLAG')` → `false` (compile-time Bun intrinsic → runtime constant)
+1. **准备阶段** — 将 `src/` 复制到 `build-src/`（原始文件不变）
+2. **转换阶段** — 重写 `build-src/` 中的源码：
+   - `feature('FLAG')` → `false`（编译时 Bun 内置 → 运行时常量）
    - `MACRO.VERSION` → `'2.1.88'`
-   - `import from 'bun:bundle'` → stub
-3. **Entry wrapper** – create `build-src/entry.js`
-4. **Bundle** – iterative esbuild run; on missing-module errors, `stub-modules.mjs` auto-generates stubs and retries
+   - `import from 'bun:bundle'` → 存根
+3. **入口包装阶段** — 创建 `build-src/entry.js`
+4. **打包阶段** — 迭代执行 esbuild；遇到模块缺失错误时，`stub-modules.mjs` 自动生成存根并重试
 
-### TypeScript Configuration (`tsconfig.json`)
+### TypeScript 配置（`tsconfig.json`）
 
-- `target`: ES2022
-- `lib`: ES2022, DOM (for compatibility)
-- `jsx`: `react-jsx`
-- `moduleResolution`: `bundler`
-- `noEmit`: true (esbuild handles emit)
-- Paths: `src/*` mapped for internal imports
+- `target`：ES2022
+- `lib`：ES2022、DOM（兼容性用）
+- `jsx`：`react-jsx`
+- `moduleResolution`：`bundler`
+- `noEmit`：true（由 esbuild 负责输出）
+- 路径：`src/*` 已映射用于内部导入
 
 ---
 
-## Application Architecture
+## 应用架构
 
-### Startup Flow
+### 启动流程
 
 ```
 cli.tsx
-  └─ fast-path checks (--version, --dump-system-prompt, --daemon-worker)
-  └─ dynamic import main.tsx  (deferred for startup performance)
-       └─ Commander.js CLI setup
-       └─ init.ts (telemetry, OTEL, settings, policies)
-       └─ Ink REPL render (App.tsx)
+  └─ 快速路径检查（--version、--dump-system-prompt、--daemon-worker）
+  └─ 动态导入 main.tsx（延迟加载以提升启动性能）
+       └─ Commander.js CLI 设置
+       └─ init.ts（遥测、OTEL、设置、策略）
+       └─ Ink REPL 渲染（App.tsx）
             └─ AppStateProvider → FpsMetricsProvider → StatsProvider
-            └─ Tool loop via QueryEngine.ts → query.ts
+            └─ 通过 QueryEngine.ts → query.ts 执行工具循环
 ```
 
-### Query Engine (`query.ts`, `QueryEngine.ts`)
+### 查询引擎（`query.ts`、`QueryEngine.ts`）
 
-The core agent loop:
-1. Build system prompt from `context.ts` (git status, CLAUDE.md, date, user context)
-2. Call Claude API via `@anthropic-ai/sdk`
-3. Process streaming response (text + tool_use blocks)
-4. Execute tool calls, collect results
-5. Compact context when needed (microcompact / reactive / snip strategies)
-6. Loop until `stop_reason === 'end_turn'` or user interrupts
+核心 Agent 循环：
+1. 从 `context.ts` 构建系统提示词（git 状态、CLAUDE.md、日期、用户上下文）
+2. 通过 `@anthropic-ai/sdk` 调用 Claude API
+3. 处理流式响应（文本块 + tool_use 块）
+4. 执行工具调用，收集结果
+5. 按需压缩上下文（microcompact / reactive / snip 策略）
+6. 循环直到 `stop_reason === 'end_turn'` 或用户中断
 
-### State Management
+### 状态管理
 
-- **AppStateStore** (`AppStateStore.ts`): Zustand-like store with `getState()` / `setState()`
-- **AppState context** (`AppState.tsx`): React context wrapping the store
-- Additional contexts: `NotificationContext`, `StatsContext`, `VoiceContext`, `ModalContext`, `OverlayContext`
-- Memoization: `memoize()` used heavily in utils (e.g., `getSystemContext`, `getUserContext`)
+- **AppStateStore**（`AppStateStore.ts`）：类 Zustand 存储，提供 `getState()` / `setState()`
+- **AppState 上下文**（`AppState.tsx`）：包装存储的 React 上下文
+- 其他上下文：`NotificationContext`、`StatsContext`、`VoiceContext`、`ModalContext`、`OverlayContext`
+- 记忆化：`memoize()` 在工具模块中大量使用（如 `getSystemContext`、`getUserContext`）
 
 ---
 
-## Tool System
+## 工具系统
 
-Tools live in `src/tools/` — each exports a tool object conforming to the `Tool.ts` framework.
+工具位于 `src/tools/` 中，每个工具导出一个符合 `Tool.ts` 框架的工具对象。
 
-### Available Tools (40+)
+### 可用工具（40+）
 
-| Tool | File | Purpose |
-|------|------|---------|
-| `AgentTool` | `AgentTool/` | Spawn sub-agents |
-| `AskUserQuestionTool` | `AskUserQuestionTool/` | Ask user clarifying questions |
-| `BashTool` | `BashTool/` | Execute shell commands |
-| `BriefTool` | `BriefTool/` | Generate task briefs |
-| `ConfigTool` | `ConfigTool/` | Manage configuration |
-| `EnterPlanModeTool` | `EnterPlanModeTool/` | Switch to plan mode |
-| `ExitPlanModeTool` | `ExitPlanModeTool/` | Exit plan mode |
-| `EnterWorktreeTool` | `EnterWorktreeTool/` | Enter git worktree |
-| `ExitWorktreeTool` | `ExitWorktreeTool/` | Exit git worktree |
-| `FileEditTool` | `FileEditTool/` | Edit files |
-| `FileReadTool` | `FileReadTool/` | Read files |
-| `FileWriteTool` | `FileWriteTool/` | Write files |
-| `GlobTool` | `GlobTool/` | File pattern matching |
-| `GrepTool` | `GrepTool/` | Content search (ripgrep) |
-| `LSPTool` | `LSPTool/` | Language Server Protocol |
-| `MCPTool` | `MCPTool/` | MCP server interaction |
-| `NotebookEditTool` | `NotebookEditTool/` | Edit Jupyter notebooks |
-| `RemoteTriggerTool` | `RemoteTriggerTool/` | Trigger remote agents |
-| `REPLTool` | `REPLTool/` | Interactive REPL |
-| `SkillTool` | `SkillTool/` | Execute skills |
-| `TaskCreateTool` | `TaskCreateTool/` | Create async tasks |
-| `TodoWriteTool` | `TodoWriteTool/` | Manage todo lists |
-| `WebFetchTool` | `WebFetchTool/` | Fetch web content |
-| `WebSearchTool` | `WebSearchTool/` | Web search |
+| 工具 | 文件 | 用途 |
+|------|------|------|
+| `AgentTool` | `AgentTool/` | 创建子 Agent |
+| `AskUserQuestionTool` | `AskUserQuestionTool/` | 向用户提问 |
+| `BashTool` | `BashTool/` | 执行 Shell 命令 |
+| `BriefTool` | `BriefTool/` | 生成任务摘要 |
+| `ConfigTool` | `ConfigTool/` | 管理配置 |
+| `EnterPlanModeTool` | `EnterPlanModeTool/` | 进入计划模式 |
+| `ExitPlanModeTool` | `ExitPlanModeTool/` | 退出计划模式 |
+| `EnterWorktreeTool` | `EnterWorktreeTool/` | 进入 git worktree |
+| `ExitWorktreeTool` | `ExitWorktreeTool/` | 退出 git worktree |
+| `FileEditTool` | `FileEditTool/` | 编辑文件 |
+| `FileReadTool` | `FileReadTool/` | 读取文件 |
+| `FileWriteTool` | `FileWriteTool/` | 写入文件 |
+| `GlobTool` | `GlobTool/` | 文件模式匹配 |
+| `GrepTool` | `GrepTool/` | 内容搜索（ripgrep） |
+| `LSPTool` | `LSPTool/` | 语言服务器协议 |
+| `MCPTool` | `MCPTool/` | MCP 服务器交互 |
+| `NotebookEditTool` | `NotebookEditTool/` | 编辑 Jupyter 笔记本 |
+| `RemoteTriggerTool` | `RemoteTriggerTool/` | 触发远程 Agent |
+| `REPLTool` | `REPLTool/` | 交互式 REPL |
+| `SkillTool` | `SkillTool/` | 执行技能 |
+| `TaskCreateTool` | `TaskCreateTool/` | 创建异步任务 |
+| `TodoWriteTool` | `TodoWriteTool/` | 管理待办列表 |
+| `WebFetchTool` | `WebFetchTool/` | 抓取网页内容 |
+| `WebSearchTool` | `WebSearchTool/` | 网页搜索 |
 
-### Tool Framework (`Tool.ts`)
+### 工具框架（`Tool.ts`）
 
 ```typescript
 interface Tool {
   name: string;
   description: string;
-  inputSchema: ToolInputJSONSchema;   // JSON Schema for parameters
+  inputSchema: ToolInputJSONSchema;   // 参数的 JSON Schema
   execute(input, context: ToolUseContext): Promise<ToolResult>;
 }
 ```
 
-Permission flow: user settings → auto-mode delegation → per-tool `needsPermission()` → prompt user.
+权限流程：用户设置 → 自动模式委托 → 单工具 `needsPermission()` → 提示用户。
 
 ---
 
-## Key Services (`src/services/`)
+## 核心服务（`src/services/`）
 
-| Service | Purpose |
-|---------|---------|
-| `analytics/` | Telemetry: two sinks (Anthropic 1P + Datadog 3P), GrowthBook feature flags |
-| `api/` | Claude API client, bootstrap data, Files API, request logging |
-| `mcp/` | Model Context Protocol server management, resource handling |
-| `compact/` | Context compaction strategies (microcompact, reactive, snip) |
-| `remoteManagedSettings/` | Hourly polling of `/api/claude_code/settings` for remote config |
-| `policyLimits/` | Token/quota tracking and enforcement |
-| `plugins/` | Plugin discovery, loading, and management |
-| `lsp/` | Language Server Protocol integration |
-| `oauth/` | OAuth authentication flow |
-| `toolUseSummary/` | Summarization for tool call results |
-
----
-
-## Commands (`src/commands/`)
-
-88+ subcommands registered via Commander.js in `main.tsx`. The registry is in `commands.ts` with conditional imports. Key commands include:
-
-- `add-dir`, `remove-dir` — manage watched directories
-- `commit` — AI-assisted git commits
-- `review` — code review
-- `mcp` — MCP server management
-- `config` — configuration management
-- `migrate` — settings migration
-
-Internal (Anthropic-employee-only) commands are gated by `USER_TYPE === 'ant'` checks.
+| 服务 | 用途 |
+|------|------|
+| `analytics/` | 遥测：两个数据接收端（Anthropic 第一方 + Datadog 第三方），GrowthBook 功能标志 |
+| `api/` | Claude API 客户端、启动数据、Files API、请求日志 |
+| `mcp/` | Model Context Protocol 服务器管理、资源处理 |
+| `compact/` | 上下文压缩策略（microcompact、reactive、snip） |
+| `remoteManagedSettings/` | 每小时轮询 `/api/claude_code/settings` 获取远程配置 |
+| `policyLimits/` | Token/配额追踪与执行 |
+| `plugins/` | 插件发现、加载与管理 |
+| `lsp/` | 语言服务器协议集成 |
+| `oauth/` | OAuth 认证流程 |
+| `toolUseSummary/` | 工具调用结果摘要 |
 
 ---
 
-## Key Conventions
+## 命令（`src/commands/`）
 
-### Feature Gating
+88+ 个子命令通过 `main.tsx` 中的 Commander.js 注册。注册表位于 `commands.ts`，使用条件导入。主要命令包括：
+
+- `add-dir`、`remove-dir` — 管理监听目录
+- `commit` — AI 辅助 git 提交
+- `review` — 代码审查
+- `mcp` — MCP 服务器管理
+- `config` — 配置管理
+- `migrate` — 设置迁移
+
+仅限 Anthropic 员工的内部命令通过 `USER_TYPE === 'ant'` 检查进行门控。
+
+---
+
+## 关键约定
+
+### 功能门控
 
 ```typescript
 import { feature } from 'bun:bundle';
 
 if (feature('VOICE_MODE')) {
-  // This code is dead in npm builds — feature() → false here
+  // 在 npm 构建中此代码为死代码 — feature() 在此返回 false
 }
 ```
 
-Never add code inside `feature()` blocks expecting it to run in this build. All 108 gated features are absent.
+不要在 `feature()` 块内添加期望在本构建中运行的代码。所有 108 个门控功能均不存在。
 
-### Lazy Imports (Performance Pattern)
+### 懒加载导入（性能模式）
 
 ```typescript
-// Used to break circular dependencies and defer module loading
+// 用于打破循环依赖并延迟模块加载
 const getComponent = (): typeof import('./Component.js') =>
   require('./Component.js');
 ```
 
-### Memoization
+### 记忆化
 
 ```typescript
 import { memoize } from './utils/memoize.js';
 export const getSystemContext = memoize(async () => { ... });
-// Invalidate with: getSystemContext.cache.clear()
+// 使用 getSystemContext.cache.clear() 清除缓存
 ```
 
-### Context Building (`context.ts`)
+### 上下文构建（`context.ts`）
 
-The system prompt is assembled from:
-1. Static system context (OS, shell, date, Node version)
-2. Dynamic git context (branch, status, recent commits) — skipped in `NODE_ENV === 'test'`
-3. CLAUDE.md files (this file + any in parent directories)
-4. User-specific context from `getUserContext()`
+系统提示词由以下内容组装：
+1. 静态系统上下文（操作系统、Shell、日期、Node 版本）
+2. 动态 git 上下文（分支、状态、最近提交）— 在 `NODE_ENV === 'test'` 时跳过
+3. CLAUDE.md 文件（本文件 + 父目录中的任何文件）
+4. 来自 `getUserContext()` 的用户特定上下文
 
-### Telemetry
+### 遥测
 
-Two analytics sinks fire on most user actions:
-- **1st-party** → Anthropic servers (no UI opt-out)
-- **3rd-party** → Datadog
+大多数用户操作会触发两个分析数据接收端：
+- **第一方** → Anthropic 服务器（无 UI 退出选项）
+- **第三方** → Datadog
 
-Set `OTEL_LOG_TOOL_DETAILS=1` to capture full tool inputs in logs.
+设置 `OTEL_LOG_TOOL_DETAILS=1` 可在日志中捕获完整的工具输入。
 
 ---
 
-## Development Workflow
+## 开发工作流
 
-### Working with This Codebase
+### 使用本代码库
 
-Since this is decompiled source, **do not expect a clean compile out of the box**. Follow QUICKSTART.md:
+由于这是反编译源码，**不要期望开箱即可编译**。请按照 QUICKSTART.md 操作：
 
-1. `npm install` — install build dependencies
-2. `npm run build` — runs 4-phase pipeline; auto-stubs missing modules
-3. `npm start` — run the built CLI
+1. `npm install` — 安装构建依赖
+2. `npm run build` — 执行 4 阶段流水线；自动生成缺失模块存根
+3. `npm start` — 运行构建后的 CLI
 
-### Type Checking
+### 类型检查
 
 ```bash
-npm run check   # tsc --noEmit (reports type errors without building)
+npm run check   # tsc --noEmit（报告类型错误但不构建）
 ```
 
-TypeScript errors in 3rd-party or stub files are expected and can be ignored.
+第三方或存根文件中的 TypeScript 错误是预期的，可以忽略。
 
-### Adding New Stubs
+### 添加新存根
 
-If the build fails with a missing module error, `scripts/stub-modules.mjs` auto-generates a stub on the next build attempt. For manual stubs, add an empty export file to `stubs/` and reference it in `scripts/build.mjs` alias map.
+如果构建因模块缺失错误而失败，`scripts/stub-modules.mjs` 会在下次构建时自动生成存根。如需手动添加存根，在 `stubs/` 中添加空导出文件，并在 `scripts/build.mjs` 的别名映射中引用它。
 
-### Modifying Tools
+### 修改工具
 
-Each tool in `src/tools/<ToolName>/` typically has:
-- `index.ts` — main tool export
-- `utils.ts` — helper functions
-- `testing/` — test fixtures (present in some tools)
+`src/tools/<ToolName>/` 中的每个工具通常包含：
+- `index.ts` — 主工具导出
+- `utils.ts` — 辅助函数
+- `testing/` — 测试夹具（部分工具包含）
 
-Tools must implement the `Tool` interface from `src/Tool.ts`. Register new tools in `src/commands.ts` or the tool registry in `main.tsx`.
-
----
-
-## Important Files for Navigation
-
-| File | Why it matters |
-|------|----------------|
-| `src/query.ts` | Core agent loop — start here to understand how Claude processes requests |
-| `src/main.tsx` | All CLI commands and initialization — 800KB, search rather than read linearly |
-| `src/Tool.ts` | Tool type system — required reading before modifying any tool |
-| `src/context.ts` | How the system prompt is assembled |
-| `src/utils/config.ts` | User config handling |
-| `src/utils/permissions/` | Permission system — important for security-sensitive changes |
-| `src/services/analytics/` | Telemetry — understand before logging new events |
-| `stubs/bun-bundle.ts` | Shows how `feature()` is stubbed |
-| `scripts/build.mjs` | Full build pipeline — read before changing build config |
+工具必须实现 `src/Tool.ts` 中的 `Tool` 接口。在 `src/commands.ts` 或 `main.tsx` 中的工具注册表注册新工具。
 
 ---
 
-## Known Limitations of This Build
+## 重要导航文件
 
-1. **108 missing modules** — all `feature()`-gated internal modules are absent; stubs are generated automatically
-2. **Bun intrinsics** — `bun:bundle`, `bun:ffi`, and other Bun-specific APIs are stubbed
-3. **React Compiler output** — some files contain `_c()` / compiled memoization patterns from React Compiler, not hand-written code
-4. **Decompiled identifiers** — some variable names may be minified or non-descriptive
-5. **No tests included** — the npm package does not ship test files; `NODE_ENV === 'test'` branches exist but test infrastructure is absent
+| 文件 | 重要原因 |
+|------|---------|
+| `src/query.ts` | 核心 Agent 循环 — 理解 Claude 处理请求方式的起点 |
+| `src/main.tsx` | 所有 CLI 命令和初始化 — 800KB，建议搜索而非线性阅读 |
+| `src/Tool.ts` | 工具类型系统 — 修改任何工具前必读 |
+| `src/context.ts` | 系统提示词的组装方式 |
+| `src/utils/config.ts` | 用户配置处理 |
+| `src/utils/permissions/` | 权限系统 — 安全敏感性修改时必读 |
+| `src/services/analytics/` | 遥测 — 记录新事件前需了解 |
+| `stubs/bun-bundle.ts` | 展示 `feature()` 的存根方式 |
+| `scripts/build.mjs` | 完整构建流水线 — 修改构建配置前必读 |
 
 ---
 
-## Research Notes
+## 本构建的已知限制
 
-This repository includes deep-analysis documents in `docs/en/`:
+1. **108 个缺失模块** — 所有 `feature()` 门控的内部模块均不存在；存根自动生成
+2. **Bun 内置 API** — `bun:bundle`、`bun:ffi` 及其他 Bun 特有 API 均已存根化
+3. **React Compiler 输出** — 部分文件包含来自 React Compiler 的 `_c()` / 编译后记忆化模式，非手写代码
+4. **反编译标识符** — 部分变量名可能经过压缩或描述性不强
+5. **不含测试** — npm 包不包含测试文件；`NODE_ENV === 'test'` 分支存在但测试基础设施缺失
 
-| Doc | Topic |
-|-----|-------|
-| `01-telemetry-and-privacy.md` | What telemetry is collected, sinks, opt-out limitations |
-| `02-hidden-features-and-codenames.md` | Model codenames (Capybara, Tengu, Numbat), feature flags |
-| `03-undercover-mode.md` | How Anthropic employees hide AI authorship in public repos |
-| `04-remote-control-and-killswitches.md` | Remote settings polling, killswitches, GrowthBook flags |
-| `05-future-roadmap.md` | KAIROS autonomous agent mode, voice mode, 17 unreleased tools |
+---
+
+## 研究笔记
+
+本仓库在 `docs/zh/` 中包含深度分析文档：
+
+| 文档 | 主题 |
+|------|------|
+| `01-遥测与隐私分析.md` | 收集了哪些遥测数据、接收端、退出限制 |
+| `02-隐藏功能与模型代号.md` | 模型代号（Capybara、Tengu、Numbat）、功能标志 |
+| `03-卧底模式分析.md` | Anthropic 员工如何在公开仓库中隐藏 AI 身份 |
+| `04-远程控制与紧急开关.md` | 远程设置轮询、紧急开关、GrowthBook 标志 |
+| `05-未来路线图.md` | KAIROS 自主 Agent 模式、语音模式、17 个未发布工具 |
